@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+<title>유한대학교 자체점검</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a3a6b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="자체점검">
+<link rel="apple-touch-icon" href="icon-192.svg">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Noto Sans KR',Apple SD Gothic Neo,sans-serif;
+  background:#f0f4f8;min-height:100vh;display:flex;
+  align-items:center;justify-content:center;padding:20px}
+.wrap{background:#fff;border-radius:16px;
+  box-shadow:0 4px 24px rgba(0,0,0,.1);
+  padding:40px 36px;max-width:420px;width:100%;text-align:center}
+.logo{font-size:13px;color:#888;margin-bottom:6px;letter-spacing:.5px}
+h1{font-size:20px;font-weight:700;color:#1a3a6b;margin-bottom:28px}
+.btn{display:block;width:100%;padding:15px 20px;border-radius:10px;
+  text-decoration:none;font-size:15px;font-weight:700;
+  margin-bottom:12px;transition:opacity .15s}
+.btn:hover{opacity:.85}
+.btn-dept{background:#1a3a6b;color:#fff}
+.btn-admin{background:#2d6a4f;color:#fff}
+.icon{font-size:18px;margin-right:8px;vertical-align:middle}
+.note{font-size:11px;color:#aaa;margin-top:20px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">유한대학교 감사실</div>
+  <h1>행정업무 종합 자체점검</h1>
+  <a href="dept.html" class="btn btn-dept">
+    <span class="icon">📝</span>부서용 점검 입력
+  </a>
+  <a href="admin.html" class="btn btn-admin">
+    <span class="icon">🔒</span>감사실 관리자 현황판
+  </a>
+  <div class="note">
+    이 페이지는 내부 직원 전용입니다.<br>
+    URL을 외부에 공유하지 마세요.
+  </div>
+</div>
+<script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js')
+    .catch(()=>{});
+}
+</script>
+<script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js');
+}
+</script>
+</body>
+</html>
