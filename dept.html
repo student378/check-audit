@@ -1416,15 +1416,55 @@ function init(){
   const url=localStorage.getItem('apiUrl')||DEFAULT_API_URL;
   document.getElementById('apiUrl').value=url;
   updateApiStatus(!!url);
-  // 학년도 표시
-  const year=localStorage.getItem('yuhan_current_year')||'2025';
-  const titleEl=document.getElementById('deptYearTitle');
-  if(titleEl)titleEl.textContent=year+' 행정업무 자체점검 — 담당부서 입력';
-  loadAdminSections();
-  initState();
-  buildDeptGrid();
+
+  // ── GAS에서 설정 로드 (학년도·부서목록 동기화) ──
+  function applyYear(year){
+    localStorage.setItem('yuhan_current_year', year);
+    const titleEl=document.getElementById('deptYearTitle');
+    if(titleEl)titleEl.textContent=year+' 행정업무 자체점검 — 담당부서 입력';
+  }
+  function applyDepts(deptsJson){
+    try{
+      const depts=JSON.parse(deptsJson);
+      if(Array.isArray(depts)&&depts.length>0){
+        localStorage.setItem('yuhan_admin_depts', deptsJson);
+        const ICONS={'학사지원팀':'🎓','총무회계팀':'💰','학생복지팀':'🏠','전략기획팀':'📊',
+          '산학협력단':'🔬','시설안전관재팀':'🏗️','입학지원팀':'📝','법인':'🏛️',
+          'AX혁신지원센터':'💡','현장실습지원센터':'💼','캠퍼스디자인센터':'🎨'};
+        DEPTS.length=0;
+        depts.forEach(d=>DEPTS.push({id:d,icon:ICONS[d]||'📁',name:d}));
+      }
+    }catch(e){}
+  }
+
+  if(url&&!url.includes('여기에_GAS_URL')){
+    fetch(url+'?action=getConfig')
+      .then(r=>r.text()).then(text=>{
+        try{
+          const d=JSON.parse(text);
+          if(d.ok&&d.config){
+            if(d.config.currentYear) applyYear(String(d.config.currentYear));
+            if(d.config.depts)       applyDepts(d.config.depts);
+          }
+        }catch(e){}
+      })
+      .catch(()=>{})
+      .finally(()=>{
+        // 로드 완료 후 UI 갱신
+        loadAdminSections();
+        initState();
+        buildDeptGrid();
+      });
+  } else {
+    // API 없으면 localStorage 기본값 사용
+    const year=localStorage.getItem('yuhan_current_year')||'2025';
+    applyYear(year);
+    loadAdminSections();
+    initState();
+    buildDeptGrid();
+  }
+
   document.getElementById('checkDate').value=new Date().toISOString().slice(0,10);
-  // 설정 건너뛰고 바로 부서선택으로
   showPage('p-dept');
 }
 init();
