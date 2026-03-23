@@ -1438,19 +1438,22 @@ function init(){
   }
 
   if(url&&!url.includes('여기에_GAS_URL')){
+    // getConfig 하나로 학년도·부서목록 모두 로드
     fetch(url+'?action=getConfig')
-      .then(r=>r.text()).then(text=>{
+      .then(r=>r.text())
+      .then(text=>{
         try{
-          const d=JSON.parse(text);
-          if(d.ok&&d.config){
-            if(d.config.currentYear) applyYear(String(d.config.currentYear));
-            if(d.config.depts)       applyDepts(d.config.depts);
+          const cfg=JSON.parse(text);
+          if(cfg.ok&&cfg.config){
+            if(cfg.config.currentYear)
+              applyYear(String(cfg.config.currentYear));
+            if(cfg.config.depts)
+              applyDepts(String(cfg.config.depts));
           }
         }catch(e){}
       })
       .catch(()=>{})
       .finally(()=>{
-        // 로드 완료 후 UI 갱신
         loadAdminSections();
         initState();
         buildDeptGrid();

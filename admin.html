@@ -1574,11 +1574,16 @@ function saveEditedSections(){
     callApi({action:'saveDepts', depts:ALL_DEPTS}).catch(()=>{});
     // storage 이벤트로 같은 브라우저의 부서용 HTML에 즉시 알림
     localStorage.setItem('yuhan_sections_updated', Date.now().toString());
-    // GAS에 부서목록 저장 (다른 PC 동기화)
+    // GAS에 부서목록 저장 (다른 PC 동기화) - 별도 시트에 저장
     const _surl=getApiUrl();
     if(_surl){
       fetch(_surl,{method:'POST',
         body:JSON.stringify({action:'saveConfig',key:'depts',value:JSON.stringify(ALL_DEPTS)}),
+        headers:{'Content-Type':'text/plain;charset=utf-8'}
+      }).catch(()=>{});
+      // 현재 학년도도 함께 저장
+      fetch(_surl,{method:'POST',
+        body:JSON.stringify({action:'saveConfig',key:'currentYear',value:currentYear}),
         headers:{'Content-Type':'text/plain;charset=utf-8'}
       }).catch(()=>{});
     }
