@@ -1222,25 +1222,31 @@ function toast(msg,type='ok'){
 
 // ─────────── 초기화 ───────────
 function loadAdminSections(){
-  // GAS에서 최신 부서목록 로드 (비동기, 백그라운드)
+  const ICONS={'학사지원팀':'🎓','총무회계팀':'💰','학생복지팀':'🏠','전략기획팀':'📊',
+    '산학협력단':'🔬','시설안전관재팀':'🏗️','입학지원팀':'📝','법인':'🏛️',
+    'AX혁신지원센터':'💡','현장실습지원센터':'💼','캠퍼스디자인센터':'🎨'};
+
+  function applyDeptsToUI(depts){
+    if(!Array.isArray(depts)||depts.length===0)return;
+    DEPTS.length=0;
+    depts.forEach(d=>DEPTS.push({id:d,icon:ICONS[d]||'📁',name:d}));
+    // localStorage 저장 제거 → storage 이벤트 무한루프 방지
+    buildDeptGrid();
+  }
+
+  // 1) GAS에서 최신 부서목록 로드 (year 파라미터 포함)
   try{
     const url=getApiUrl();
-    if(url && !url.includes('여기에_GAS_URL')){
-      fetch(url+'?action=getDepts').then(r=>r.json()).then(d=>{
-        if(d.ok && d.depts && d.depts.length>0){
-          localStorage.setItem('yuhan_admin_depts', JSON.stringify(d.depts));
-          // DEPTS 즉시 갱신
-          const ICONS={'학사지원팀':'🎓','총무회계팀':'💰','학생복지팀':'🏠','전략기획팀':'📊',
-            '산학협력단':'🔬','시설안전관재팀':'🏗️','입학지원팀':'📝','법인':'🏛️',
-            '학사지원팀':'⚖️','AX혁신지원센터':'💡','AX혁신지원센터':'💡',
-            '현장실습지원센터':'💼','현장실습지원센터':'💼','캠퍼스디자인센터':'🎨'};
-          DEPTS.length=0;
-          d.depts.forEach(dep=>DEPTS.push({id:dep,icon:ICONS[dep]||'📁',name:dep}));
-          buildDeptGrid();
-        }
-      }).catch(()=>{});
+    const year=localStorage.getItem('yuhan_current_year')||'2025';
+    if(url&&!url.includes('여기에_GAS_URL')){
+      fetch(url+'?action=getDepts&year='+year)
+        .then(r=>r.json())
+        .then(d=>{ if(d.ok&&d.depts&&d.depts.length>0) applyDeptsToUI(d.depts); })
+        .catch(()=>{});
     }
   }catch(e){}
+
+  // 2) SECTIONS: localStorage에서 로드
   try{
     const saved=localStorage.getItem('yuhan_admin_sections');
     if(saved){
@@ -1248,21 +1254,24 @@ function loadAdminSections(){
       if(Array.isArray(custom)&&custom.length>0){
         SECTIONS.length=0;
         custom.forEach(sec=>SECTIONS.push({id:sec.id,title:sec.title,
-          items:(sec.items||[]).map(item=>({f:item.f||'',d:Array.isArray(item.d)?[...item.d]:['학사지원팀'],new:!!item.new,c:Array.isArray(item.c)?[...item.c]:[]}))}));
+          items:(sec.items||[]).map(item=>({
+            f:item.f||'',
+            d:Array.isArray(item.d)?[...item.d]:['학사지원팀'],
+            new:!!item.new,
+            c:Array.isArray(item.c)?[...item.c]:[]
+          }))}));
       }
     }
-  }catch(e){console.warn('[loadAdminSections] SECTIONS 로드 오류:',e);}
+  }catch(e){}
+
+  // 3) 부서목록: localStorage (GAS 응답 전 즉시 적용, 조건 없이)
   try{
     const savedDepts=localStorage.getItem('yuhan_admin_depts');
     if(savedDepts){
-      const depts=JSON.parse(savedDepts);
-      if(Array.isArray(depts)&&depts.length>0){
-        const ICONS={'학사지원팀':'🎓','총무회계팀':'💰','학생복지팀':'🏠','전략기획팀':'📊','산학협력단':'🔬','시설안전관재팀':'🏗️','입학지원팀':'📝','법인':'🏛️','AX혁신지원센터':'💡','현장실습지원센터':'💼','캠퍼스디자인센터':'🎨'};
-        DEPTS.length=0;
-        depts.forEach(d=>DEPTS.push({id:d,icon:ICONS[d]||'📁',name:d}));
-      }
+      const parsed=JSON.parse(savedDepts);
+      if(Array.isArray(parsed)&&parsed.length>0) applyDeptsToUI(parsed);
     }
-  }catch(e){console.warn('[loadAdminSections] DEPTS 로드 오류:',e);}
+  }catch(e){}
 }
 
 // 관리자 반려 실시간 감지
@@ -1298,6 +1307,17 @@ window.addEventListener('storage', function(e){
     return;
   }
 
+  // ★ 부서/항목 변경은 currentDept 여부와 무관하게 먼저 처리
+  if(e.key==='yuhan_sections_updated'||e.key==='yuhan_admin_sections'||e.key==='yuhan_admin_depts'){
+    loadAdminSections();
+    buildDeptGrid();
+    if(currentDept) buildTabs();
+    if(e.key==='yuhan_admin_depts') toast('🏢 부서 목록이 업데이트되었습니다','ok');
+    else toast('📋 점검 항목이 업데이트되었습니다','ok');
+    return;
+  }
+
+  // 이하는 부서 선택된 경우만
   if(!currentDept) return;
   const myKey = lsKey();
   if(e.key === myKey){
@@ -1310,11 +1330,6 @@ window.addEventListener('storage', function(e){
         if(activeP && activeP.id === 'p-submit') buildSubmitPage();
       }
     }catch(ex){}
-  }
-  if(e.key==='yuhan_sections_updated'||e.key==='yuhan_admin_sections'){
-    loadAdminSections();initState();buildDeptGrid();
-    if(currentDept)buildTabs();
-    toast('📋 점검 항목이 업데이트되었습니다','ok');
   }
 });
 
@@ -1448,18 +1463,16 @@ function init(){
   if(url&&!url.includes('여기에_GAS_URL')){
     Promise.all([
       fetch(url+'?action=getConfig').then(r=>r.text()).catch(()=>'{}'),
-      fetch(url+'?action=getDepts').then(r=>r.text()).catch(()=>'{}')
+      fetch(url+'?action=getDepts&year='+(localStorage.getItem('yuhan_current_year')||'2025')).then(r=>r.text()).catch(()=>'{}')
     ]).then(([cfgText,deptsText])=>{
       let changed=false;
-      // 학년도 갱신
+      // 학년도 갱신 (항상 GAS 값 적용)
       try{
         const cfg=JSON.parse(cfgText);
         if(cfg.ok&&cfg.config&&cfg.config.currentYear){
           const yr=String(cfg.config.currentYear);
-          if(yr!==(localStorage.getItem('yuhan_current_year')||'2025')){
-            applyYear(yr);
-            changed=true;
-          }
+          applyYear(yr);  // 비교 없이 항상 적용
+          changed=true;
         }
       }catch(e){}
       // 부서목록 갱신

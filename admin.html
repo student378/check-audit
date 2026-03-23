@@ -650,7 +650,7 @@ async function loadDeptsFromServer(){
   try{
     const url=getApiUrl();
     if(!url||url.includes('여기에_GAS_URL'))return;
-    const r=await fetch(url+'?action=getDepts');
+    const r=await fetch(url+'?action=getDepts&year='+currentYear);
     const d=await r.json();
     if(d.ok && d.depts && d.depts.length>0){
       localStorage.setItem('yuhan_admin_depts', JSON.stringify(d.depts));
@@ -1550,7 +1550,25 @@ function addCheck(si,ii){
 }
 
 function saveEditedSections(){
-  if(!editedSections){toast('변경사항 없음','warn');return}
+  // editedSections가 없어도 현재 ALL_DEPTS는 저장 (부서 삭제/추가 반영)
+  if(!editedSections){
+    // SECTIONS 변경 없어도 부서목록은 저장
+    try{
+      localStorage.setItem('yuhan_admin_depts', JSON.stringify(ALL_DEPTS));
+      localStorage.setItem('yuhan_sections_updated', Date.now().toString());
+      const _gasUrl=getApiUrl();
+      if(_gasUrl&&!_gasUrl.includes('여기에_GAS_URL')){
+        fetch(_gasUrl,{method:'POST',
+          body:JSON.stringify({action:'saveDepts',depts:ALL_DEPTS,year:currentYear}),
+          headers:{'Content-Type':'text/plain;charset=utf-8'}
+        }).then(r=>r.text()).then(text=>{
+          try{ const d=JSON.parse(text); if(d.ok) toast('✅ 부서목록 저장 완료','ok'); }catch(e){}
+        }).catch(()=>{});
+      }
+      toast('✅ 부서목록 저장됨','ok');
+    }catch(e){ toast('저장 실패: '+e.message,'err'); }
+    return;
+  }
   // SECTIONS 완전 교체 (추가/삭제된 항목 포함 전체 반영)
   SECTIONS.length=0;
   editedSections.forEach(sec=>{
@@ -1570,26 +1588,31 @@ function saveEditedSections(){
     const payload=JSON.stringify(SECTIONS);
     localStorage.setItem('yuhan_admin_sections', payload);
     localStorage.setItem('yuhan_admin_depts', JSON.stringify(ALL_DEPTS));
-    // GAS에도 부서목록 저장 → 다른 기기에서도 동일하게 로드
-    callApi({action:'saveDepts', depts:ALL_DEPTS}).catch(()=>{});
     // storage 이벤트로 같은 브라우저의 부서용 HTML에 즉시 알림
     localStorage.setItem('yuhan_sections_updated', Date.now().toString());
-    // GAS에 부서목록 저장 (다른 PC 동기화) - 별도 시트에 저장
-    const _surl=getApiUrl();
-    if(_surl){
-      fetch(_surl,{method:'POST',
-        body:JSON.stringify({action:'saveConfig',key:'depts',value:JSON.stringify(ALL_DEPTS)}),
-        headers:{'Content-Type':'text/plain;charset=utf-8'}
-      }).catch(()=>{});
-      // 현재 학년도도 함께 저장
-      fetch(_surl,{method:'POST',
-        body:JSON.stringify({action:'saveConfig',key:'currentYear',value:currentYear}),
-        headers:{'Content-Type':'text/plain;charset=utf-8'}
-      }).catch(()=>{});
-    }
-    toast('✅ 저장됨 — 부서용 화면에도 즉시 반영됩니다','ok');
     render();
     buildEditPanel();
+    // GAS에 부서목록 저장
+    const _gasUrl=getApiUrl();
+    if(_gasUrl&&!_gasUrl.includes('여기에_GAS_URL')){
+      toast('💾 GAS에 저장 중...','ok');
+      fetch(_gasUrl,{
+        method:'POST',
+        body:JSON.stringify({action:'saveDepts',depts:ALL_DEPTS,year:currentYear}),
+        headers:{'Content-Type':'text/plain;charset=utf-8'}
+      })
+      .then(r=>r.text())
+      .then(text=>{
+        try{
+          const d=JSON.parse(text);
+          if(d.ok) toast('✅ 저장 완료 — 다른 PC에서 새로고침하면 반영됩니다','ok');
+          else toast('⚠ GAS 저장 실패: '+d.msg,'warn');
+        }catch(e){ toast('⚠ GAS 응답 오류','warn'); }
+      })
+      .catch(()=>toast('⚠ GAS 연결 실패 — 로컬에만 저장됨','warn'));
+    } else {
+      toast('✅ 저장됨 (GAS 미연결 — 로컬만)','ok');
+    }
   }catch(e){toast('저장 실패: '+e.message,'err')}
 }
 
@@ -1670,7 +1693,7 @@ function init(){
   initYearSelect();
   // GAS에서 최신 부서목록 로드 (다른 기기에서 변경된 목록 반영)
   loadDeptsFromServer().then(()=>loadAll());
-  setInterval(loadAll,10000); // 10초마다 자동갱신 (다른기기 실시간 반영)
+  // 자동 새로고침 비활성화 — 수동 새로고침만 사용 // 10초마다 자동갱신 (다른기기 실시간 반영)
 }
 // 이미 인증된 세션이면 바로 실행, 아니면 비밀번호 화면 표시
 if(sessionStorage.getItem('admin_auth')==='1'){
