@@ -744,6 +744,9 @@ function deptLsKey(dept){
 }
 
 function getActiveDepts(){
+  // ★ 버그수정: ALL_DEPTS 배열 직접 사용 (SECTIONS.d[] 기반 시 부서 변경 미반영 문제 해결)
+  if(ALL_DEPTS && ALL_DEPTS.length > 0) return [...ALL_DEPTS];
+  // fallback: SECTIONS에서 추출 (ALL_DEPTS 초기화 전 보호)
   const set=new Set();
   SECTIONS.forEach(s=>s.items.forEach(i=>i.d.forEach(d=>set.add(d))));
   return [...set].sort();
@@ -762,7 +765,7 @@ function getApiUrl(){return localStorage.getItem('apiUrl')||DEFAULT_API_URL;}
 // 관리자용 POST API 호출
 async function callApi(body){
   const url=getApiUrl();
-  if(!url||url.includes('여기에_GAS_URL'))return null;
+  if(!url||url.includes('AKfycbzM2pnDcvDt6C4kQWakywDt5CQnSD4pw5zI1gV8TjaLm_LsHySUvMaCoNb3kFl2LY1C'))return null;
   try{
     const year=localStorage.getItem('yuhan_current_year')||'2025';
     const r=await fetch(url,{
@@ -1556,6 +1559,8 @@ function saveEditedSections(){
     try{
       localStorage.setItem('yuhan_admin_depts', JSON.stringify(ALL_DEPTS));
       localStorage.setItem('yuhan_sections_updated', Date.now().toString());
+      // ★ 버그수정: 부서목록 저장 후 관리자 현황판 즉시 갱신
+      render();
       const _gasUrl=getApiUrl();
       if(_gasUrl&&!_gasUrl.includes('여기에_GAS_URL')){
         fetch(_gasUrl,{method:'POST',
@@ -1565,7 +1570,7 @@ function saveEditedSections(){
           try{ const d=JSON.parse(text); if(d.ok) toast('✅ 부서목록 저장 완료','ok'); }catch(e){}
         }).catch(()=>{});
       }
-      toast('✅ 부서목록 저장됨','ok');
+      toast('✅ 부서목록 저장됨 — 현황판 갱신 완료','ok');
     }catch(e){ toast('저장 실패: '+e.message,'err'); }
     return;
   }

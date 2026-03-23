@@ -604,7 +604,7 @@ async function testApi(){
 async function callApi(body){
   const url=getApiUrl();
   // placeholder URL이면 API 호출 자체를 차단
-  if(!url||url.includes('여기에_GAS_URL'))return null;
+  if(!url||url.includes('AKfycbzM2pnDcvDt6C4kQWakywDt5CQnSD4pw5zI1gV8TjaLm_LsHySUvMaCoNb3kFl2LY1C'))return null;
   try{
     const year=localStorage.getItem('yuhan_current_year')||'2025';
     const r=await fetch(url,{
@@ -1195,6 +1195,8 @@ async function doSubmit(){
   document.getElementById('confirmBox').classList.add('active-confirm');
   setStepActive(4);
   for(let i=1;i<=4;i++)document.getElementById('step'+i).classList.toggle('done',true);
+  // ★ 버그수정: bspBannerArea 미선언 ReferenceError 수정 — 항상 DOM에서 직접 조회
+  const bspBannerArea=document.getElementById('submitBannerArea');
   if(result?.ok){
     toast('✅ 제출 완료 — 감사실 서버에 전송됐습니다.','ok');
   } else {
@@ -1459,11 +1461,12 @@ function init(){
   applyYear(localStorage.getItem('yuhan_current_year')||'2025');
   finish();
 
-  // 백그라운드에서 GAS 최신값 로드 → 변경사항 있으면 갱신
+  // 백그라운드에서 GAS 최신값 로드 → 응답 오면 무조건 반영 (타임아웃 없음)
   if(url&&!url.includes('여기에_GAS_URL')){
+    const yr=localStorage.getItem('yuhan_current_year')||'2025';
     Promise.all([
       fetch(url+'?action=getConfig').then(r=>r.text()).catch(()=>'{}'),
-      fetch(url+'?action=getDepts&year='+(localStorage.getItem('yuhan_current_year')||'2025')).then(r=>r.text()).catch(()=>'{}')
+      fetch(url+'?action=getDepts&year='+yr).then(r=>r.text()).catch(()=>'{}')
     ]).then(([cfgText,deptsText])=>{
       let changed=false;
       // 학년도 갱신 (항상 GAS 값 적용)
@@ -1485,7 +1488,15 @@ function init(){
         }
       }catch(e){}
       // 변경사항 있을 때만 재렌더
-      if(changed) buildDeptGrid();
+      if(changed){
+        buildDeptGrid();
+        // 학년도가 바뀐 경우 상단 타이틀도 갱신
+        const titleEl=document.getElementById('deptYearTitle');
+        if(titleEl){
+          const yr=localStorage.getItem('yuhan_current_year')||'2025';
+          titleEl.textContent=yr+' 행정업무 자체점검 — 담당부서 입력';
+        }
+      }
     }).catch(()=>{});
   }
 
