@@ -457,12 +457,11 @@ const DEPTS = [
   {id:'학생복지팀',icon:'🏠',name:'학생복지팀'},
   {id:'전략기획팀',icon:'📊',name:'전략기획팀'},
   {id:'산학협력단',icon:'🔬',name:'산학협력단'},
-  {id:'시설안전팀',icon:'🏗️',name:'시설안전팀'},
+  {id:'시설안전관재팀',icon:'🏗️',name:'시설안전관재팀'},
   {id:'입학지원팀',icon:'📝',name:'입학지원팀'},
   {id:'법인',icon:'🏛️',name:'법인'},
-  {id:'인권센터',icon:'⚖️',name:'인권센터'},
-  {id:'AX혁신센터',icon:'💡',name:'AX혁신센터'},
-  {id:'산학취업팀',icon:'💼',name:'산학취업팀'},
+  {id:'AX혁신지원센터',icon:'💡',name:'AX혁신지원센터'},
+  {id:'현장실습지원센터',icon:'💼',name:'현장실습지원센터'},
   {id:'캠퍼스디자인센터',icon:'🎨',name:'캠퍼스디자인센터'},
 ];
 
@@ -1233,8 +1232,8 @@ function loadAdminSections(){
           // DEPTS 즉시 갱신
           const ICONS={'학사지원팀':'🎓','총무회계팀':'💰','학생복지팀':'🏠','전략기획팀':'📊',
             '산학협력단':'🔬','시설안전관재팀':'🏗️','입학지원팀':'📝','법인':'🏛️',
-            '인권센터':'⚖️','AX혁신지원센터':'💡','AX혁신센터':'💡',
-            '현장실습지원센터':'💼','산학취업팀':'💼','캠퍼스디자인센터':'🎨'};
+            '학사지원팀':'⚖️','AX혁신지원센터':'💡','AX혁신지원센터':'💡',
+            '현장실습지원센터':'💼','현장실습지원센터':'💼','캠퍼스디자인센터':'🎨'};
           DEPTS.length=0;
           d.depts.forEach(dep=>DEPTS.push({id:dep,icon:ICONS[dep]||'📁',name:dep}));
           buildDeptGrid();
@@ -1417,54 +1416,64 @@ function init(){
   document.getElementById('apiUrl').value=url;
   updateApiStatus(!!url);
 
-  // ── GAS에서 설정 로드 (학년도·부서목록 동기화) ──
+  const ICONS_MAP={'학사지원팀':'🎓','총무회계팀':'💰','학생복지팀':'🏠','전략기획팀':'📊',
+    '산학협력단':'🔬','시설안전관재팀':'🏗️','입학지원팀':'📝','법인':'🏛️',
+    'AX혁신지원센터':'💡','현장실습지원센터':'💼','캠퍼스디자인센터':'🎨'};
+
   function applyYear(year){
-    localStorage.setItem('yuhan_current_year', year);
-    const titleEl=document.getElementById('deptYearTitle');
-    if(titleEl)titleEl.textContent=year+' 행정업무 자체점검 — 담당부서 입력';
-  }
-  function applyDepts(deptsJson){
-    try{
-      const depts=JSON.parse(deptsJson);
-      if(Array.isArray(depts)&&depts.length>0){
-        localStorage.setItem('yuhan_admin_depts', deptsJson);
-        const ICONS={'학사지원팀':'🎓','총무회계팀':'💰','학생복지팀':'🏠','전략기획팀':'📊',
-          '산학협력단':'🔬','시설안전관재팀':'🏗️','입학지원팀':'📝','법인':'🏛️',
-          'AX혁신지원센터':'💡','현장실습지원센터':'💼','캠퍼스디자인센터':'🎨'};
-        DEPTS.length=0;
-        depts.forEach(d=>DEPTS.push({id:d,icon:ICONS[d]||'📁',name:d}));
-      }
-    }catch(e){}
+    if(!year)return;
+    localStorage.setItem('yuhan_current_year',String(year));
+    const el=document.getElementById('deptYearTitle');
+    if(el)el.textContent=year+' 행정업무 자체점검 — 담당부서 입력';
   }
 
-  if(url&&!url.includes('여기에_GAS_URL')){
-    // getConfig 하나로 학년도·부서목록 모두 로드
-    fetch(url+'?action=getConfig')
-      .then(r=>r.text())
-      .then(text=>{
-        try{
-          const cfg=JSON.parse(text);
-          if(cfg.ok&&cfg.config){
-            if(cfg.config.currentYear)
-              applyYear(String(cfg.config.currentYear));
-            if(cfg.config.depts)
-              applyDepts(String(cfg.config.depts));
-          }
-        }catch(e){}
-      })
-      .catch(()=>{})
-      .finally(()=>{
-        loadAdminSections();
-        initState();
-        buildDeptGrid();
-      });
-  } else {
-    // API 없으면 localStorage 기본값 사용
-    const year=localStorage.getItem('yuhan_current_year')||'2025';
-    applyYear(year);
+  function applyDepts(depts){
+    if(!Array.isArray(depts)||depts.length===0)return;
+    localStorage.setItem('yuhan_admin_depts',JSON.stringify(depts));
+    DEPTS.length=0;
+    depts.forEach(d=>DEPTS.push({id:d,icon:ICONS_MAP[d]||'📁',name:d}));
+  }
+
+  function finish(){
     loadAdminSections();
     initState();
     buildDeptGrid();
+  }
+
+  // ★ 즉시 기본값으로 화면 표시 (로딩 지연 없음)
+  applyYear(localStorage.getItem('yuhan_current_year')||'2025');
+  finish();
+
+  // 백그라운드에서 GAS 최신값 로드 → 변경사항 있으면 갱신
+  if(url&&!url.includes('여기에_GAS_URL')){
+    Promise.all([
+      fetch(url+'?action=getConfig').then(r=>r.text()).catch(()=>'{}'),
+      fetch(url+'?action=getDepts').then(r=>r.text()).catch(()=>'{}')
+    ]).then(([cfgText,deptsText])=>{
+      let changed=false;
+      // 학년도 갱신
+      try{
+        const cfg=JSON.parse(cfgText);
+        if(cfg.ok&&cfg.config&&cfg.config.currentYear){
+          const yr=String(cfg.config.currentYear);
+          if(yr!==(localStorage.getItem('yuhan_current_year')||'2025')){
+            applyYear(yr);
+            changed=true;
+          }
+        }
+      }catch(e){}
+      // 부서목록 갱신
+      try{
+        const dep=JSON.parse(deptsText);
+        if(dep.ok&&Array.isArray(dep.depts)&&dep.depts.length>0){
+          const cur=DEPTS.map(d=>d.id).join(',');
+          const nxt=dep.depts.join(',');
+          if(cur!==nxt){ applyDepts(dep.depts); changed=true; }
+        }
+      }catch(e){}
+      // 변경사항 있을 때만 재렌더
+      if(changed) buildDeptGrid();
+    }).catch(()=>{});
   }
 
   document.getElementById('checkDate').value=new Date().toISOString().slice(0,10);
